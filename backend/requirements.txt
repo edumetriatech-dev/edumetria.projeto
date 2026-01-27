@@ -1,0 +1,9 @@
+Django
+djangorestframework
+celery 
+redis 
+django-celery-results
+pandas
+joblib
+scikit-learn
+django-cors-headers
