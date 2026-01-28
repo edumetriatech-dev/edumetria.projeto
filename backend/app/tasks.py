@@ -37,7 +37,7 @@ def processar_lote_ia(self, lote_id):
     features = df_passageiros[['Pclass', 'Age', 'SibSp', 'Parch', 'Fare', 'Sex_female', 'Sex_male', 'Embarked_C', 'Embarked_Q', 'Embarked_S']]
 
     # 4. Carregar modelo IA e Prever
-    modelo_path = os.path.join(settings.BASE_DIR, 'modelo_titanic_k5.pkl')
+    modelo_path = os.path.join(settings.BASE_DIR, '..', 'modelos', 'modelo_titanic_k5.pkl')
     modelo = joblib.load(modelo_path)
     #survived_preds = modelo.predict(features) #acho que é .series
     survived_preds = modelo.predict_proba(features)[:,1] #acho que é .series
