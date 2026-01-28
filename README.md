@@ -18,7 +18,7 @@ O sistema utiliza o <strong>Docker</strong> para a containerização dos serviç
 
 O <strong>Redis</strong> é responsável pela fila de tarefas assíncronas relacionadas à execução do modelo de inteligência artificial.
 
-<h2>Criar e iniciar Redis no Docker:</h2><br>
+<h2>Criar e iniciar Redis no Docker:</h2>
 docker run -d -p 6379:6379 --name redis redis
 
 
