@@ -3,4 +3,6 @@ readme.txt
 /modelos
 token_github.txt
 /frontend/.env
+/frontend/node_modules/
 /backend/.env
+/backend/meu_venv/
