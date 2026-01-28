@@ -4,5 +4,6 @@ readme.txt
 token_github.txt
 /frontend/.env
 /frontend/node_modules/
+/frontend/package-lock.json
 /backend/.env
 /backend/meu_venv/
