@@ -14,5 +14,5 @@ O projeto <strong>Edumetria</strong> tem como objetivo implementar um sistema we
 <dd>Banco de dados relacional: PostgreSQL</dd>
 </dl>
 
-O sistema utiliza o <strong>Docker</strong> para a containerização dos serviços, permitindo a criação, execução de aplicações em ambientes isolados e consistentes. 
+O sistema utiliza o <strong>Docker</strong> para a containerização dos serviços, permitindo a criação e execução de aplicações em ambientes isolados e consistentes. 
 O <strong>Redis</strong> é responsável pela fila de tarefas assíncronas relacionadas à execução do modelo de inteligência artificial.
