@@ -129,7 +129,7 @@ const LandingPage = () => {
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button asChild size="xl" variant="accent">
-                  <Link href="/upload">
+                  <Link href="/login">
                     Começar Agora
                     <ArrowRight className="h-5 w-5" />
                   </Link>
@@ -271,8 +271,8 @@ const LandingPage = () => {
               baseadas em dados
             </p>
             <Button asChild size="xl" variant="hero">
-              <Link href="/upload">
-                Começar Análise Gratuita
+              <Link href="/login">
+                Começar Análise
                 <ArrowRight className="h-5 w-5" />
               </Link>
             </Button>
