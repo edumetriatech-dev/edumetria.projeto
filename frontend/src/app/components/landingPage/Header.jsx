@@ -84,7 +84,7 @@ const Header = ({ onThemeToggle, isDark }) => {
             </Button>
 
             <Button asChild>
-              <Link href="/upload">Começar Agora</Link>
+              <Link href="/login">Começar Agora</Link>
             </Button>
           </div>
 
@@ -133,7 +133,7 @@ const Header = ({ onThemeToggle, isDark }) => {
               ))}
 
               <Button asChild className="mt-2">
-                <Link href="/upload">Começar Agora</Link>
+                <Link href="/login">Começar Agora</Link>
               </Button>
             </div>
           </nav>
