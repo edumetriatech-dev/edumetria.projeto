@@ -1,7 +1,6 @@
 import { Inter } from "next/font/google";
 import "./globals.css";
 import "./App.css";
-import MainLayout from "./components/MainLayout";
 
 export const metadata = {
   title: "IA Preditiva",
@@ -16,7 +15,7 @@ export default function RootLayout({ children }) {
       <body
         className={`antialiased ${inter.className}`}
       >
-        <MainLayout>{children}</MainLayout>
+        {children}
       </body>
     </html>
   );

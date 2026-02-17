@@ -135,6 +135,8 @@
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-width: 16rem;
+    --sidebar-width-icon: 3rem;
   }
 
   .dark {
@@ -186,6 +188,10 @@
   h1, h2, h3, h4, h5, h6 {
     @apply font-semibold tracking-tight;
   }
+  html, body {
+    height: 100%;
+  }
+
 }
 
 @layer components {

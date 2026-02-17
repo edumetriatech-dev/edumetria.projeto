@@ -34,7 +34,7 @@ const TelaLogin = () => {
     }
 
     if (!hasError) {
-      router.push("/");
+      router.push("/dashboard");
     }
   };
 
