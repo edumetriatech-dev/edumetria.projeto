@@ -39,12 +39,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/app/components/ui/dialog";
-import Header from "@/app/components/landingPage/Header";
-import Footer from "@/app/components/landingPage/Footer";
-import KPICard from "@/app/components/landingPage/KPICard";
-import RiskBadge from "@/app/components/landingPage/RiskBadge";
-import ProgressBar from "@/app/components/landingPage/ProgressBar";
-import { mockStudents, getStatistics, Student } from "@/app/data/mockStudents";
+import Header from "@/app/components/Header";
+import Footer from "@/app/components/Footer";
+import KPICard from "@/app/components/KPICard";
+import RiskBadge from "@/app/components/RiskBadge";
+import ProgressBar from "@/app/components/ProgressBar";
+import { mockStudents, getStatistics, Student } from "@/app/(public)/data/mockStudents";
 
 const Dashboard = () => {
   const router = useRouter();
