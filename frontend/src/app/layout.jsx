@@ -1,6 +1,7 @@
 import { Inter } from "next/font/google";
 import "./globals.css";
 import "./App.css";
+import { Toaster } from "@/app/components/ui/toaster";
 
 export const metadata = {
   title: "IA Preditiva",
@@ -16,6 +17,7 @@ export default function RootLayout({ children }) {
         className={`antialiased ${inter.className}`}
       >
         {children}
+        <Toaster />
       </body>
     </html>
   );
