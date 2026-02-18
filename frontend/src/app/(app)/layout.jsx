@@ -40,7 +40,7 @@ export default function PublicLayout({ children }) {
         <AppSidebar/>
 
         <div className="flex-1 flex flex-col">
-          <header className="h-14 border-b border-border bg-card/95 backdrop-blur-md flex items-center px-4 gap-4 sticky top-0 z-30">
+          <header className="h-14 border-b border-border bg-card/95 backdrop-blur-md flex items-center px-4 gap-4 sticky top-0 z-9">
             <SidebarTrigger />
             <div className="flex-1" />
 
@@ -50,7 +50,7 @@ export default function PublicLayout({ children }) {
               onClick={onThemeToggle}
               className="rounded-full"
             >
-              {isDark ? (
+              {isDark() ? (
                 <Sun className="h-5 w-5" />
               ) : (
                 <Moon className="h-5 w-5" />

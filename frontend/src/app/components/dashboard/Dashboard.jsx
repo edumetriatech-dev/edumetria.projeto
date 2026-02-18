@@ -6,13 +6,13 @@ import {
   AlertTriangle, 
   AlertCircle, 
   CheckCircle, 
-  Download, 
   FileText, 
   Search,
   Eye,
   TrendingDown,
   TrendingUp,
-  Minus
+  Minus,
+  Upload
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { Button } from '@/app/components/ui/button';
@@ -89,8 +89,8 @@ const Dashboard = () => {
         </div>
         <div className="flex gap-3">
           <Button variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-2" />
-            Exportar CSV
+            <Upload className="h-4 w-4 mr-2" />
+            Enviar CSV
           </Button>
           <Button variant="secondary" size="sm">
             <FileText className="h-4 w-4 mr-2" />

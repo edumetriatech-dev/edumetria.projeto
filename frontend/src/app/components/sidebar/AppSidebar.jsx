@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { LayoutDashboard, LogOut } from "lucide-react";
+import { LayoutDashboard, LogOut, Users } from "lucide-react";
 
 import {
   Sidebar,
@@ -18,6 +18,7 @@ import {
 
 const menuItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+  { title: "Alunos", url: "/alunos", icon: Users },
 ];
 
 export function AppSidebar() {
