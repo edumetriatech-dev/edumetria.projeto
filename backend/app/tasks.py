@@ -1,6 +1,6 @@
 from celery import shared_task
-from .models import Aluno, Passageiro
-from .serializers import AlunoSerializer, PassageiroSerializer
+from .models import Aluno
+from .serializers import AlunoSerializer
 import pandas as pd
 import joblib
 from sklearn.metrics import accuracy_score
@@ -11,7 +11,7 @@ import os
 @shared_task(bind=True)
 def processar_lote_ia(self, lote_id):
     # 1. Buscar no banco APENAS os dados desse lote novo
-    passageiros = Passageiro.objects.filter(lote_upload_id=lote_id)
+    passageiros = Aluno.objects.filter(lote_upload_id=lote_id)
 
     if not passageiros.exists():
         return "Nenhum dado encontrado."
