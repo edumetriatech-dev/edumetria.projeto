@@ -1,76 +1,61 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Aluno, Turma, Disciplina, AlunoTurma, TurmaDisciplina, Desempenho
-from .serializers import AlunoSerializer, TurmaSerializer, DisciplinaSerializer, AlunoTurmaSerializer, TurmaDisciplinaSerializer, DesempenhoSerializer
+from .models import Aluno, Turma, Disciplina, TurmaDisciplina, Desempenho
+from .serializers import AlunoSerializer, TurmaSerializer, DisciplinaSerializer, TurmaDisciplinaSerializer, DesempenhoSerializer
 from .pagination import AlunoPagination
 from django.shortcuts import get_object_or_404
 import csv
 import io
 import uuid
 from django.db import transaction
-from django.db.models import Case, When, Value, IntegerField
+from django.db.models import Avg, Case, When, Value, IntegerField
 from .tasks import processar_lote_ia
 
 class AlunoAPIView(APIView):
     def get(self, request, pk=None):
         if pk:
-            aluno = get_object_or_404(Aluno, pk=pk)
+            aluno = get_object_or_404(
+                Aluno.objects.annotate(
+                    nota_media=Avg('desempenhos__nota'),
+                    frequencia_media=Avg('desempenhos__frequencia')
+                ), 
+                pk=pk
+            )
+
             serializer = AlunoSerializer(aluno)
             return Response(serializer.data)
 
         alunos = Aluno.objects.all()
 
         # Pegando os filtros da URL
-        nome = request.query_params.get("nome")
         matricula = request.query_params.get("matricula")
-        nota_portugues = request.query_params.get("nota_portugues")
-        nota_matematica = request.query_params.get("nota_matematica")
-        frequencia = request.query_params.get("frequencia")
         risco = request.query_params.get("risco")
+        serie = request.query_params.get("serie")
 
         # Aplicando os filtros se existirem
-        if nome:
-            alunos = alunos.filter(nome__icontains=nome)
 
         if matricula:
             alunos = alunos.filter(matricula__icontains=matricula)
-
-        if nota_portugues:
-            alunos = alunos.filter(nota_portugues__gte=float(nota_portugues))
-
-        if nota_matematica:
-            alunos = alunos.filter(nota_matematica__gte=float(nota_matematica))
-
-        if frequencia:
-            alunos = alunos.filter(frequencia__gte=float(frequencia))
-
+        
         if risco:
             if(risco == 'alto'):
-                alunos = alunos.filter(probabilidade_evasao__gte=0.6)
+                alunos = alunos.filter(probabilidade_evasao__gt=0.69)
             elif(risco == 'medio'):
-                alunos = alunos.filter(probabilidade_evasao__range=(0.4, 0.5999))
+                alunos = alunos.filter(
+                    probabilidade_evasao__gt=0.39,
+                    probabilidade_evasao__lte=0.69,
+                )
             elif(risco == 'baixo'):
-                alunos = alunos.filter(probabilidade_evasao__range=(0, 0.39999))
+                alunos = alunos.filter(probabilidade_evasao__lte=0.39)
 
+        if serie:
+            alunos = alunos.filter(turma__serie=serie)
 
-           # -------- ORDENAÇÃO --------
-        ordenar_por = request.query_params.get("ordenar_por")
-        direcao = request.query_params.get("direcao")
-
-        if ordenar_por:
-            campos_permitidos = ['nome', 'matricula', 'nota_portugues', 'nota_matematica', 'frequencia', 'risco']
-            if ordenar_por in campos_permitidos:
-                if direcao == "desc":
-                    if ordenar_por == "risco":
-                        alunos = alunos.order_by("-probabilidade_evasao")
-                    else:
-                        alunos = alunos.order_by(f"-{ordenar_por}")
-                else:
-                    if ordenar_por == "risco":
-                        alunos = alunos.order_by("probabilidade_evasao")
-                    else:
-                        alunos = alunos.order_by(ordenar_por)
+        alunos = alunos.annotate(
+            nota_media=Avg('desempenhos__nota'),
+            frequencia_media=Avg('desempenhos__frequencia')
+        ).distinct()
 
         paginator = AlunoPagination()
         page = paginator.paginate_queryset(alunos, request)
@@ -78,6 +63,7 @@ class AlunoAPIView(APIView):
         serializer = AlunoSerializer(page, many=True)
         return paginator.get_paginated_response(serializer.data)
     
+
     def post(self, request):
         csv_file = request.FILES.get('file')
         if not csv_file:
@@ -145,16 +131,17 @@ class AlunoAPIView(APIView):
             Turma.objects.bulk_create(turmas_para_criar, ignore_conflicts=True, batch_size=1000)
             Disciplina.objects.bulk_create(disciplinas_para_criar, ignore_conflicts=True, batch_size=1000)
 
+
         # ------------------------------------
-        # TABELAS INTERMEDIÁRIAS
+        # TABELAS INTERMEDIÁRIAS E RELAÇÃO ALUNO -- TURMA
         # Buscar já persistidos no banco
         # ------------------------------------
 
-        aluno_turma_cache = {}
         turma_disciplina_cache = {}
-
-        aluno_turma_para_criar = []
         turma_disciplina_para_criar = []
+
+        alunos_para_atualizar = []
+        alunos_processados = set()
 
         alunos_db = {
             a.matricula: a
@@ -185,16 +172,11 @@ class AlunoAPIView(APIView):
             turma = turmas_db[turma_key]
             disciplina = disciplinas_db[disciplina_nome]
 
-            # ALUNO_TURMA
-            at_key = (aluno.matricula, turma.id)
-
-            if at_key not in aluno_turma_cache:
-                at = AlunoTurma(
-                    aluno=aluno,
-                    turma=turma
-                )
-                aluno_turma_para_criar.append(at)
-                aluno_turma_cache[at_key] = at
+            # RELAÇÃO ALUNO -- TURMA
+            if matricula not in alunos_processados:
+                aluno.turma = turma
+                alunos_para_atualizar.append(aluno)
+                alunos_processados.add(matricula)
 
             # TURMA_DISCIPLINA
             td_key = (turma.id, disciplina.nome_disciplina)
@@ -208,9 +190,9 @@ class AlunoAPIView(APIView):
                 turma_disciplina_cache[td_key] = td
 
 
-        AlunoTurma.objects.bulk_create(
-            aluno_turma_para_criar,
-            ignore_conflicts=True,
+        Aluno.objects.bulk_update(
+            alunos_para_atualizar,
+            ['turma'],
             batch_size=1000
         )
 
@@ -226,11 +208,6 @@ class AlunoAPIView(APIView):
 
         desempenhos_para_criar = []
 
-        aluno_turma_db = {
-            (at.aluno.matricula, at.turma.id): at
-            for at in AlunoTurma.objects.select_related("aluno", "turma")
-        }
-
         turma_disciplina_db = {
             (td.turma.id, td.disciplina.nome_disciplina): td
             for td in TurmaDisciplina.objects.select_related("turma", "disciplina")
@@ -245,11 +222,11 @@ class AlunoAPIView(APIView):
             )
             disciplina_nome = row["disciplina"]
 
-            at = aluno_turma_db[(matricula, turmas_db[turma_key].id)]
+            aluno = alunos_db[matricula]
             td = turma_disciplina_db[(turmas_db[turma_key].id, disciplina_nome)]
 
             desempenho = Desempenho(
-                aluno_turma=at,
+                aluno=aluno,
                 turma_disciplina=td,
                 nota=float(row["nota"]),
                 frequencia=float(row["frequencia"]),
