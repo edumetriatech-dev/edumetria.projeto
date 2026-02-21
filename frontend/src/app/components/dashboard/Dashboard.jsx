@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Users,
   AlertTriangle,
@@ -44,37 +44,76 @@ import { mockStudents, getStatistics } from "@/app/(public)/data/mockStudents";
 import EnviaCSV from "@/app/components/EnviaCSV";
 import { toast } from "@/app/hooks/use-toast";
 
+const rota = process.env.NEXT_PUBLIC_API_URL;
+
 const Dashboard = () => {
+  const [alunos, setAlunos] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalAlunos, setTotalAlunos] = useState(0);
+  const [alunosPorPagina, setAlunosPorPagina] = useState(10);
+  const [alunoSelecionado, setAlunoSelecionado] = useState(null);
+
+  const [filtros, setFiltros] = useState({
+    filtroNome: "",
+    filtroMatricula: "",
+    filtroNota: 0,
+    filtroFrequencia: 0,
+    filtroRisco: "",
+    filtroSerie: "",
+  });
+
+  /**
+   * Busca a lista de alunos.
+   * @function fetchAlunos
+   * @description Função assíncrona para buscar a lista de alunos da API.
+   * @async
+   * @returns {Promise<void>}
+   * @throws {Error} Lança um erro se a resposta da API não for bem-sucedida.
+   */
+  const fetchAlunos = async (page = 1, filtros, alunosPorPagina = 10) => {
+    try {
+      const response = await fetch(
+        `${rota}/api/v1/alunos?page=${page}&page_size=${alunosPorPagina}` +
+          (filtros.filtroMatricula
+            ? `&matricula=${filtros.filtroMatricula}`
+            : "") +
+          (filtros.filtroRisco && filtros.filtroRisco != "all"
+            ? `&risco=${filtros.filtroRisco}`
+            : "") +
+          (filtros.filtroSerie && filtros.filtroSerie != "all"
+            ? `&serie=${filtros.filtroSerie}`
+            : ""),
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      );
+      if (!response.ok) throw new Error("Erro ao buscar alunos");
+      const data = await response.json();
+      console.log(data);
+      setAlunos(data.results);
+      setTotalAlunos(data.count);
+      setCurrentPage(page);
+      setTotalPages(Math.ceil(data.count / alunosPorPagina));
+    } catch (error) {
+      console.error(error);
+      setAlunos([]);
+      setTotalAlunos(0);
+      setCurrentPage(1);
+      setTotalPages(1);
+    }
+  };
+
+  useEffect(() => {
+    fetchAlunos(currentPage, filtros, alunosPorPagina);
+  }, [currentPage, filtros, alunosPorPagina]);
+
   const stats = getStatistics();
 
-  const [riskFilter, setRiskFilter] = useState("all");
-  const [serieFilter, setSerieFilter] = useState("all");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [selectedStudent, setSelectedStudent] = useState(null);
-
   const [modalEnviaCsv, setModalEnviaCsv] = useState(false);
-
-  const filteredStudents = useMemo(() => {
-    return mockStudents.filter((student) => {
-      const matchesRisk =
-        riskFilter === "all" || student.riskLevel === riskFilter;
-      const matchesSerie =
-        serieFilter === "all" || student.serie.toString() === serieFilter;
-      const matchesSearch = student.id
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
-      return matchesRisk && matchesSerie && matchesSearch;
-    });
-  }, [riskFilter, serieFilter, searchTerm]);
-
-  const paginatedStudents = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    return filteredStudents.slice(start, start + itemsPerPage);
-  }, [filteredStudents, currentPage, itemsPerPage]);
-
-  const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
 
   const chartData = [
     { name: "Alto Risco", value: stats.highRisk, color: "hsl(0, 84%, 60%)" },
@@ -241,7 +280,12 @@ const Dashboard = () => {
             Lista Completa de Alunos
           </h2>
           <div className="flex flex-col md:flex-row gap-4">
-            <Select value={riskFilter} onValueChange={setRiskFilter}>
+            <Select
+              value={filtros.filtroRisco}
+              onValueChange={(v) => {
+                setFiltros((prev) => ({ ...prev, filtroRisco: v }));
+              }}
+            >
               <SelectTrigger className="w-full md:w-48 bg-background">
                 <SelectValue placeholder="Filtrar por Risco" />
               </SelectTrigger>
@@ -252,7 +296,12 @@ const Dashboard = () => {
                 <SelectItem value="baixo">Risco Baixo</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={serieFilter} onValueChange={setSerieFilter}>
+            <Select
+              value={filtros.filtroSerie}
+              onValueChange={(v) => {
+                setFiltros((prev) => ({ ...prev, filtroSerie: v }));
+              }}
+            >
               <SelectTrigger className="w-full md:w-48 bg-background">
                 <SelectValue placeholder="Filtrar por Série" />
               </SelectTrigger>
@@ -268,8 +317,13 @@ const Dashboard = () => {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Buscar por ID do aluno"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                value={filtros.filtroMatricula}
+                onChange={(e) => {
+                  setFiltros((prev) => ({
+                    ...prev,
+                    filtroMatricula: e.target.value,
+                  }));
+                }}
                 className="pl-10 bg-background"
               />
             </div>
@@ -281,10 +335,10 @@ const Dashboard = () => {
             <thead>
               <tr className="border-b border-border bg-muted/50">
                 <th className="text-left p-4 font-medium text-foreground">
-                  ID do Aluno
+                  Matrícula
                 </th>
                 <th className="text-left p-4 font-medium text-foreground">
-                  Série
+                  Turma
                 </th>
                 <th className="text-left p-4 font-medium text-foreground">
                   Nível de Risco
@@ -296,7 +350,7 @@ const Dashboard = () => {
                   Média de Notas
                 </th>
                 <th className="text-left p-4 font-medium text-foreground">
-                  Taxa de Faltas
+                  Frequência Média
                 </th>
                 <th className="text-left p-4 font-medium text-foreground">
                   Ações
@@ -304,37 +358,51 @@ const Dashboard = () => {
               </tr>
             </thead>
             <tbody>
-              {paginatedStudents.map((student) => (
+              {alunos.map((aluno) => (
                 <tr
-                  key={student.id}
+                  key={aluno.matricula}
                   className="border-b border-border hover:bg-muted/30 transition-colors"
                 >
-                  <td className="p-4 font-medium text-foreground">
-                    {student.id}
+                  <td className="p-4 text-muted-foreground">
+                    {aluno.matricula}
                   </td>
                   <td className="p-4 text-muted-foreground">
-                    {student.serie}º Ano
+                    {aluno.turma_info}
                   </td>
                   <td className="p-4">
-                    <RiskBadge level={student.riskLevel} />
+                    <RiskBadge
+                      level={
+                        aluno.probabilidade_evasao > 0.69
+                          ? "alto"
+                          : aluno.probabilidade_evasao > 0.39
+                            ? "medio"
+                            : "baixo"
+                      }
+                    />
                   </td>
                   <td className="p-4">
                     <ProgressBar
-                      value={student.probability}
-                      level={student.riskLevel}
+                      value={aluno.probabilidade_evasao}
+                      level={
+                        aluno.probabilidade_evasao > 0.69
+                          ? "alto"
+                          : aluno.probabilidade_evasao > 0.39
+                            ? "medio"
+                            : "baixo"
+                      }
                     />
                   </td>
                   <td className="p-4 text-muted-foreground">
-                    {student.averageGrade.toFixed(1)}
+                    {aluno.nota_media}
                   </td>
                   <td className="p-4 text-muted-foreground">
-                    {student.absenceRate.toFixed(1)}%
+                    {(aluno.frequencia_media * 100).toFixed(0)}%
                   </td>
                   <td className="p-4">
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => setSelectedStudent(student)}
+                      onClick={() => setAlunoSelecionado(aluno)}
                     >
                       Detalhes
                     </Button>
@@ -352,9 +420,9 @@ const Dashboard = () => {
               Itens por página:
             </span>
             <Select
-              value={itemsPerPage.toString()}
+              value={alunosPorPagina.toString()}
               onValueChange={(v) => {
-                setItemsPerPage(Number(v));
+                setAlunosPorPagina(Number(v));
                 setCurrentPage(1);
               }}
             >
@@ -370,9 +438,9 @@ const Dashboard = () => {
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">
-              Mostrando {(currentPage - 1) * itemsPerPage + 1} -{" "}
-              {Math.min(currentPage * itemsPerPage, filteredStudents.length)} de{" "}
-              {filteredStudents.length}
+              Mostrando {(currentPage - 1) * alunosPorPagina + 1} -{" "}
+              {Math.min(currentPage * alunosPorPagina, totalAlunos)} de{" "}
+              {totalAlunos}
             </span>
             <div className="flex gap-1">
               <Button
@@ -400,25 +468,29 @@ const Dashboard = () => {
 
       {/* Student Detail Modal */}
       <Dialog
-        open={!!selectedStudent}
-        onOpenChange={() => setSelectedStudent(null)}
+        open={!!alunoSelecionado}
+        onOpenChange={() => setAlunoSelecionado(null)}
       >
         <DialogContent className="max-w-lg bg-card">
           <DialogHeader>
             <DialogTitle className="text-xl">Detalhes do Aluno</DialogTitle>
           </DialogHeader>
-          {selectedStudent && (
+          {alunoSelecionado && (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-2xl font-bold text-foreground">
-                    {selectedStudent.id}
+                    {alunoSelecionado.matricula}
                   </p>
                   <p className="text-muted-foreground">
-                    {selectedStudent.serie}º Ano
+                    {alunoSelecionado.turma_info}
                   </p>
                 </div>
-                <RiskBadge level={selectedStudent.riskLevel} />
+                <RiskBadge level={alunoSelecionado.probabilidade_evasao > 0.69
+                          ? "alto"
+                          : alunoSelecionado.probabilidade_evasao > 0.39
+                            ? "medio"
+                            : "baixo"} />
               </div>
               <div className="space-y-4">
                 <div>
@@ -426,8 +498,12 @@ const Dashboard = () => {
                     Probabilidade de Evasão
                   </p>
                   <ProgressBar
-                    value={selectedStudent.probability}
-                    level={selectedStudent.riskLevel}
+                    value={alunoSelecionado.probabilidade_evasao}
+                    level={alunoSelecionado.probabilidade_evasao > 0.69
+                          ? "alto"
+                          : alunoSelecionado.probabilidade_evasao > 0.39
+                            ? "medio"
+                            : "baixo"}
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -436,37 +512,16 @@ const Dashboard = () => {
                       Média de Notas
                     </p>
                     <p className="text-2xl font-bold text-foreground">
-                      {selectedStudent.averageGrade.toFixed(1)}
+                      {alunoSelecionado.nota_media}
                     </p>
                   </div>
                   <div className="p-4 bg-muted/50 rounded-lg">
                     <p className="text-sm text-muted-foreground">
-                      Taxa de Faltas
+                      Frequência Média
                     </p>
                     <p className="text-2xl font-bold text-foreground">
-                      {selectedStudent.absenceRate.toFixed(1)}%
+                      {(alunoSelecionado.frequencia_media * 100).toFixed(0)}%
                     </p>
-                  </div>
-                  <div className="p-4 bg-muted/50 rounded-lg">
-                    <p className="text-sm text-muted-foreground">
-                      Total de Faltas
-                    </p>
-                    <p className="text-2xl font-bold text-foreground">
-                      {selectedStudent.totalAbsences}
-                    </p>
-                  </div>
-                  <div className="p-4 bg-muted/50 rounded-lg">
-                    <p className="text-sm text-muted-foreground">Tendência</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <TrendIcon trend={selectedStudent.trend} />
-                      <span className="text-lg font-medium text-foreground capitalize">
-                        {selectedStudent.trend === "down"
-                          ? "Piora"
-                          : selectedStudent.trend === "up"
-                            ? "Melhora"
-                            : "Estável"}
-                      </span>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -475,14 +530,14 @@ const Dashboard = () => {
                   Recomendações
                 </h4>
                 <ul className="text-sm text-muted-foreground space-y-2">
-                  {selectedStudent.riskLevel === "alto" && (
+                  {alunoSelecionado.probabilidade_evasao > 0.69 && (
                     <>
                       <li>• Agendar reunião com responsáveis imediatamente</li>
                       <li>• Avaliar necessidade de apoio psicopedagógico</li>
                       <li>• Monitorar frequência semanalmente</li>
                     </>
                   )}
-                  {selectedStudent.riskLevel === "medio" && (
+                  {alunoSelecionado.probabilidade_evasao > 0.39 && (
                     <>
                       <li>• Contatar responsáveis para acompanhamento</li>
                       <li>
@@ -491,7 +546,7 @@ const Dashboard = () => {
                       <li>• Monitorar frequência quinzenalmente</li>
                     </>
                   )}
-                  {selectedStudent.riskLevel === "baixo" && (
+                  {alunoSelecionado.probabilidade_evasao <= 0.39 && (
                     <>
                       <li>• Manter acompanhamento regular</li>
                       <li>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import {
   FileText,
   Search,
@@ -29,9 +29,9 @@ import RiskBadge from "@/app/components/RiskBadge";
 import ProgressBar from "@/app/components/ProgressBar";
 import { mockStudents } from "@/app/(public)/data/mockStudents";
 import EnviaCSV from "@/app/components/EnviaCSV";
-import { toast } from '@/app/hooks/use-toast';
-//import { toast } from 'sonner';
-//toast.success('Arquivo enviado com sucesso!')
+import { toast } from "@/app/hooks/use-toast";
+
+const rota = process.env.NEXT_PUBLIC_API_URL;
 
 const TrendIcon = (trend) => {
   if (trend === "down")
@@ -40,35 +40,72 @@ const TrendIcon = (trend) => {
   return <Minus className="h-4 w-4 text-muted-foreground" />;
 };
 
-const AlunosPage = () => {
-  const [riskFilter, setRiskFilter] = useState("all");
-  const [serieFilter, setSerieFilter] = useState("all");
-  const [searchTerm, setSearchTerm] = useState("");
+const Alunos = () => {
+  const [alunos, setAlunos] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [selectedStudent, setSelectedStudent] = useState(null);
-
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalAlunos, setTotalAlunos] = useState(0);
+  const [hasNextPage, setHasNextPage] = useState(false);
+  const [hasPreviousPage, setHasPreviousPage] = useState(false);
+  const [alunosPorPagina, setAlunosPorPagina] = useState(10);
+  const [alunoSelecionado, setAlunoSelecionado] = useState(null);
+  
   const [modalEnviaCsv, setModalEnviaCsv] = useState(false);
 
-  const filteredStudents = useMemo(() => {
-    return mockStudents.filter((student) => {
-      const matchesRisk =
-        riskFilter === "all" || student.riskLevel === riskFilter;
-      const matchesSerie =
-        serieFilter === "all" || student.serie.toString() === serieFilter;
-      const matchesSearch = student.id
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
-      return matchesRisk && matchesSerie && matchesSearch;
-    });
-  }, [riskFilter, serieFilter, searchTerm]);
+  const [filtros, setFiltros] = useState({
+    filtroNome: "",
+    filtroMatricula: "",
+    filtroNota: 0,
+    filtroFrequencia: 0,
+    filtroRisco: "",
+    filtroSerie: "",
+  });
 
-  const paginatedStudents = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    return filteredStudents.slice(start, start + itemsPerPage);
-  }, [filteredStudents, currentPage, itemsPerPage]);
+  /**
+   * Busca a lista de alunos.
+   * @function fetchAlunos
+   * @description Função assíncrona para buscar a lista de alunos da API.
+   * @async
+   * @returns {Promise<void>}
+   * @throws {Error} Lança um erro se a resposta da API não for bem-sucedida.
+   */
+  const fetchAlunos = async (page = 1, filtros, alunosPorPagina=10) => {
+    try {
+      const response = await fetch(
+        `${rota}/api/v1/alunos?page=${page}&page_size=${alunosPorPagina}` +
+          (filtros.filtroMatricula ? `&matricula=${filtros.filtroMatricula}` : "") +
+          (filtros.filtroRisco && filtros.filtroRisco != "all" ? `&risco=${filtros.filtroRisco}` : "") + 
+          (filtros.filtroSerie && filtros.filtroSerie != "all" ? `&serie=${filtros.filtroSerie}` : ""),
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      );
+      if (!response.ok) throw new Error("Erro ao buscar alunos");
+      const data = await response.json();
+      console.log(data);
+      setAlunos(data.results);
+      setHasPreviousPage(!!data.previous);
+      setHasNextPage(!!data.next);
+      setTotalAlunos(data.count);
+      setCurrentPage(page);
+      setTotalPages(Math.ceil(data.count / alunosPorPagina));
+    } catch (error) {
+      console.error(error);
+      setAlunos([]);
+      setTotalAlunos(0);
+      setCurrentPage(1);
+      setTotalPages(1);
+    }
+  };
 
-  const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
+  useEffect(() => {
+    fetchAlunos(currentPage, filtros, alunosPorPagina);
+  }, [currentPage, filtros, alunosPorPagina]);
+
+  //const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
 
   return (
     <div className="p-6 md:p-8">
@@ -82,7 +119,11 @@ const AlunosPage = () => {
           </p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" size="sm" onClick={() => setModalEnviaCsv(true)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setModalEnviaCsv(true)}
+          >
             <Upload className="h-4 w-4 mr-2" />
             Enviar CSV
           </Button>
@@ -97,10 +138,9 @@ const AlunosPage = () => {
         <div className="p-6 border-b border-border">
           <div className="flex flex-col md:flex-row gap-4">
             <Select
-              value={riskFilter}
+              value={filtros.filtroRisco}
               onValueChange={(v) => {
-                setRiskFilter(v);
-                setCurrentPage(1);
+                setFiltros((prev) => ({ ...prev, filtroRisco: v }))
               }}
             >
               <SelectTrigger className="w-full md:w-48 bg-background">
@@ -114,10 +154,9 @@ const AlunosPage = () => {
               </SelectContent>
             </Select>
             <Select
-              value={serieFilter}
+              value={filtros.filtroSerie}
               onValueChange={(v) => {
-                setSerieFilter(v);
-                setCurrentPage(1);
+                setFiltros((prev) => ({ ...prev, filtroSerie: v }))
               }}
             >
               <SelectTrigger className="w-full md:w-48 bg-background">
@@ -125,20 +164,18 @@ const AlunosPage = () => {
               </SelectTrigger>
               <SelectContent className="bg-card border-border">
                 <SelectItem value="all">Todas as Séries</SelectItem>
-                <SelectItem value="6">6º Ano</SelectItem>
-                <SelectItem value="7">7º Ano</SelectItem>
-                <SelectItem value="8">8º Ano</SelectItem>
-                <SelectItem value="9">9º Ano</SelectItem>
+                <SelectItem value="10">1º Ano</SelectItem>
+                <SelectItem value="11">2º Ano</SelectItem>
+                <SelectItem value="12">3º Ano</SelectItem>
               </SelectContent>
             </Select>
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar por ID do aluno"
-                value={searchTerm}
+                placeholder="Buscar por matrícula do aluno"
+                value={filtros.filtroMatricula}
                 onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
+                  setFiltros((prev) => ({ ...prev, filtroMatricula: e.target.value }));
                 }}
                 className="pl-10 bg-background"
               />
@@ -150,11 +187,14 @@ const AlunosPage = () => {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border bg-muted/50">
+                {/* <th className="text-left p-4 font-medium text-foreground">
+                  Nome
+                </th> */}
                 <th className="text-left p-4 font-medium text-foreground">
-                  ID do Aluno
+                  Matrícula
                 </th>
                 <th className="text-left p-4 font-medium text-foreground">
-                  Série
+                  Turma
                 </th>
                 <th className="text-left p-4 font-medium text-foreground">
                   Nível de Risco
@@ -166,7 +206,7 @@ const AlunosPage = () => {
                   Média de Notas
                 </th>
                 <th className="text-left p-4 font-medium text-foreground">
-                  Taxa de Faltas
+                  Frequência Média
                 </th>
                 <th className="text-left p-4 font-medium text-foreground">
                   Ações
@@ -174,37 +214,54 @@ const AlunosPage = () => {
               </tr>
             </thead>
             <tbody>
-              {paginatedStudents.map((student) => (
+              {alunos.map((aluno) => (
                 <tr
-                  key={student.id}
+                  key={aluno.matricula}
                   className="border-b border-border hover:bg-muted/30 transition-colors"
                 >
-                  <td className="p-4 font-medium text-foreground">
-                    {student.id}
+                  {/* <td className="p-4 font-medium text-foreground">
+                    {aluno.nome}
+                  </td> */}
+                  <td className="p-4 text-muted-foreground">
+                    {aluno.matricula}
                   </td>
                   <td className="p-4 text-muted-foreground">
-                    {student.serie}º Ano
+                    {aluno.turma_info}
+                    {/* {aluno.turma.ano_letivo} - {aluno.turma.serie}º{" "}
+                    {aluno.turma.secao} */}
                   </td>
                   <td className="p-4">
-                    <RiskBadge level={student.riskLevel} />
+                    <RiskBadge
+                      level={
+                        aluno.probabilidade_evasao > 0.69
+                          ? "alto"
+                          : aluno.probabilidade_evasao > 0.39
+                            ? "medio"
+                            : "baixo"
+                      }
+                    />
                   </td>
                   <td className="p-4">
                     <ProgressBar
-                      value={student.probability}
-                      level={student.riskLevel}
+                      value={aluno.probabilidade_evasao}
+                      level={
+                        aluno.probabilidade_evasao > 0.69
+                          ? "alto"
+                          : aluno.probabilidade_evasao > 0.39
+                            ? "medio"
+                            : "baixo"
+                      }
                     />
                   </td>
+                  <td className="p-4 text-muted-foreground">{aluno.nota_media}</td>
                   <td className="p-4 text-muted-foreground">
-                    {student.averageGrade.toFixed(1)}
-                  </td>
-                  <td className="p-4 text-muted-foreground">
-                    {student.absenceRate.toFixed(1)}%
+                    {(aluno.frequencia_media * 100).toFixed(0)}%
                   </td>
                   <td className="p-4">
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => setSelectedStudent(student)}
+                      onClick={() => setAlunoSelecionado(aluno)}
                     >
                       Detalhes
                     </Button>
@@ -221,9 +278,9 @@ const AlunosPage = () => {
               Itens por página:
             </span>
             <Select
-              value={itemsPerPage.toString()}
+              value={alunosPorPagina.toString()}
               onValueChange={(v) => {
-                setItemsPerPage(Number(v));
+                setAlunosPorPagina(Number(v));
                 setCurrentPage(1);
               }}
             >
@@ -239,9 +296,9 @@ const AlunosPage = () => {
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">
-              Mostrando {(currentPage - 1) * itemsPerPage + 1} -{" "}
-              {Math.min(currentPage * itemsPerPage, filteredStudents.length)} de{" "}
-              {filteredStudents.length}
+              Mostrando {(currentPage - 1) * alunosPorPagina + 1} -{" "}
+              {Math.min(currentPage * alunosPorPagina, totalAlunos)} de{" "}
+              {totalAlunos}
             </span>
             <div className="flex gap-1">
               <Button
@@ -269,25 +326,29 @@ const AlunosPage = () => {
 
       {/* Student Detail Modal */}
       <Dialog
-        open={!!selectedStudent}
-        onOpenChange={() => setSelectedStudent(null)}
+        open={!!alunoSelecionado}
+        onOpenChange={() => setAlunoSelecionado(null)}
       >
         <DialogContent className="max-w-lg bg-card">
           <DialogHeader>
             <DialogTitle className="text-xl">Detalhes do Aluno</DialogTitle>
           </DialogHeader>
-          {selectedStudent && (
+          {alunoSelecionado && (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-2xl font-bold text-foreground">
-                    {selectedStudent.id}
+                    {alunoSelecionado.matricula}
                   </p>
                   <p className="text-muted-foreground">
-                    {selectedStudent.serie}º Ano
+                    {alunoSelecionado.turma_info}
                   </p>
                 </div>
-                <RiskBadge level={selectedStudent.riskLevel} />
+                <RiskBadge level={alunoSelecionado.probabilidade_evasao > 0.69
+                          ? "alto"
+                          : alunoSelecionado.probabilidade_evasao > 0.39
+                            ? "medio"
+                            : "baixo"} />
               </div>
               <div className="space-y-4">
                 <div>
@@ -295,8 +356,12 @@ const AlunosPage = () => {
                     Probabilidade de Evasão
                   </p>
                   <ProgressBar
-                    value={selectedStudent.probability}
-                    level={selectedStudent.riskLevel}
+                    value={alunoSelecionado.probabilidade_evasao}
+                    level={alunoSelecionado.probabilidade_evasao > 0.69
+                          ? "alto"
+                          : alunoSelecionado.probabilidade_evasao > 0.39
+                            ? "medio"
+                            : "baixo"}
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -305,18 +370,18 @@ const AlunosPage = () => {
                       Média de Notas
                     </p>
                     <p className="text-2xl font-bold text-foreground">
-                      {selectedStudent.averageGrade.toFixed(1)}
+                      {alunoSelecionado.nota_media}
                     </p>
                   </div>
                   <div className="p-4 bg-muted/50 rounded-lg">
                     <p className="text-sm text-muted-foreground">
-                      Taxa de Faltas
+                      Frequência Média
                     </p>
                     <p className="text-2xl font-bold text-foreground">
-                      {selectedStudent.absenceRate.toFixed(1)}%
+                      {(alunoSelecionado.frequencia_media * 100).toFixed(0)}%
                     </p>
                   </div>
-                  <div className="p-4 bg-muted/50 rounded-lg">
+                  {/* <div className="p-4 bg-muted/50 rounded-lg">
                     <p className="text-sm text-muted-foreground">
                       Total de Faltas
                     </p>
@@ -336,7 +401,7 @@ const AlunosPage = () => {
                             : "Estável"}
                       </span>
                     </div>
-                  </div>
+                  </div> */}
                 </div>
               </div>
               <div className="pt-4 border-t border-border">
@@ -344,14 +409,14 @@ const AlunosPage = () => {
                   Recomendações
                 </h4>
                 <ul className="text-sm text-muted-foreground space-y-2">
-                  {selectedStudent.riskLevel === "alto" && (
+                  {alunoSelecionado.probabilidade_evasao > 0.69 && (
                     <>
                       <li>• Agendar reunião com responsáveis imediatamente</li>
                       <li>• Avaliar necessidade de apoio psicopedagógico</li>
                       <li>• Monitorar frequência semanalmente</li>
                     </>
                   )}
-                  {selectedStudent.riskLevel === "medio" && (
+                  {alunoSelecionado.probabilidade_evasao > 0.39 && (
                     <>
                       <li>• Contatar responsáveis para acompanhamento</li>
                       <li>
@@ -360,7 +425,7 @@ const AlunosPage = () => {
                       <li>• Monitorar frequência quinzenalmente</li>
                     </>
                   )}
-                  {selectedStudent.riskLevel === "baixo" && (
+                  {alunoSelecionado.probabilidade_evasao <= 0.39 && (
                     <>
                       <li>• Manter acompanhamento regular</li>
                       <li>
@@ -381,12 +446,15 @@ const AlunosPage = () => {
         isUploadOpen={modalEnviaCsv}
         setIsUploadOpen={(open) => setModalEnviaCsv(open)}
         onUpload={() => {
-            setModalEnviaCsv(false);
-            toast({ title: 'Sucesso', description: 'Arquivo enviado com sucesso!'});
+          setModalEnviaCsv(false);
+          toast({
+            title: "Sucesso",
+            description: "Arquivo enviado com sucesso!",
+          });
         }}
       />
     </div>
   );
 };
 
-export default AlunosPage;
+export default Alunos;

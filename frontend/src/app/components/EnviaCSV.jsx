@@ -29,7 +29,7 @@ const EnviaCSV = ({ isUploadOpen, setIsUploadOpen, onUpload }) => {
       } else {
         const formData = new FormData();
         formData.append("file", selectedFile);
-        const response = await fetch(`${rota}/api/v1/passageiros`, {
+        const response = await fetch(`${rota}/api/v1/alunos`, {
           method: "POST",
           body: formData,
         });
