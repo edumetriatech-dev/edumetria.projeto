@@ -40,7 +40,7 @@ import {
 import KPICard from "@/app/components/KPICard";
 import RiskBadge from "@/app/components/RiskBadge";
 import ProgressBar from "@/app/components/ProgressBar";
-import { mockStudents, getStatistics } from "@/app/(public)/data/mockStudents";
+import { mockStudents } from "@/app/(public)/data/mockStudents";
 import EnviaCSV from "@/app/components/EnviaCSV";
 import { toast } from "@/app/hooks/use-toast";
 
@@ -53,7 +53,11 @@ const Dashboard = () => {
   const [totalAlunos, setTotalAlunos] = useState(0);
   const [alunosPorPagina, setAlunosPorPagina] = useState(10);
   const [alunoSelecionado, setAlunoSelecionado] = useState(null);
-
+  const [stats, setStats] = useState({
+    totalRiscoAlto: 0,
+    totalRiscoMedio: 0,
+    totalRiscoBaixo: 0,
+  });
   const [filtros, setFiltros] = useState({
     filtroNome: "",
     filtroMatricula: "",
@@ -62,6 +66,13 @@ const Dashboard = () => {
     filtroRisco: "",
     filtroSerie: "",
   });
+
+  // RA = RISCO ALTO
+  const [alunosRiscoAlto, setAlunosRiscoAlto] = useState([]);
+  const [currentPageRA, setCurrentPageRA] = useState(1);
+  const [totalPagesRA, setTotalPagesRA] = useState(1);
+  const [totalAlunosRA, setTotalAlunosRA] = useState(0);
+  const alunosRAPorPagina = 5;
 
   /**
    * Busca a lista de alunos.
@@ -94,6 +105,11 @@ const Dashboard = () => {
       if (!response.ok) throw new Error("Erro ao buscar alunos");
       const data = await response.json();
       console.log(data);
+      setStats({
+        totalRiscoAlto: data.total_risco_alto,
+        totalRiscoMedio: data.total_risco_medio,
+        totalRiscoBaixo: data.total_risco_baixo,
+      });
       setAlunos(data.results);
       setTotalAlunos(data.count);
       setCurrentPage(page);
@@ -111,18 +127,62 @@ const Dashboard = () => {
     fetchAlunos(currentPage, filtros, alunosPorPagina);
   }, [currentPage, filtros, alunosPorPagina]);
 
-  const stats = getStatistics();
+  /**
+   * Busca a lista de alunos com risco alto.
+   * @function fetchAlunos
+   * @description Função assíncrona para buscar a lista de alunos com risco da API.
+   * @async
+   * @returns {Promise<void>}
+   * @throws {Error} Lança um erro se a resposta da API não for bem-sucedida.
+   */
+  const fetchAlunosRiscoAlto = async (page = 1, alunosRAPorPagina = 10) => {
+    try {
+      const response = await fetch(
+        `${rota}/api/v1/alunos?page=${page}&page_size=${alunosRAPorPagina}&risco=alto`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      );
+      if (!response.ok) throw new Error("Erro ao buscar alunos com risco alto");
+      const data = await response.json();
+      setAlunosRiscoAlto(data.results);
+      setTotalAlunosRA(data.count);
+      setCurrentPageRA(page);
+      setTotalPagesRA(Math.ceil(data.count / alunosRAPorPagina));
+    } catch (error) {
+      console.error(error);
+      setAlunosRiscoAlto([]);
+      setTotalAlunosRA(0);
+      setCurrentPageRA(1);
+      setTotalPagesRA(1);
+    }
+  };
+
+  useEffect(() => {
+    fetchAlunosRiscoAlto(currentPageRA, alunosRAPorPagina);
+  }, [currentPageRA, alunosRAPorPagina]);
 
   const [modalEnviaCsv, setModalEnviaCsv] = useState(false);
 
   const chartData = [
-    { name: "Alto Risco", value: stats.highRisk, color: "hsl(0, 84%, 60%)" },
+    {
+      name: "Alto Risco",
+      value: stats.totalRiscoAlto,
+      color: "hsl(0, 84%, 60%)",
+    },
     {
       name: "Médio Risco",
-      value: stats.mediumRisk,
+      value: stats.totalRiscoMedio,
       color: "hsl(38, 92%, 50%)",
     },
-    { name: "Baixo Risco", value: stats.lowRisk, color: "hsl(160, 84%, 39%)" },
+    {
+      name: "Baixo Risco",
+      value: stats.totalRiscoBaixo,
+      color: "hsl(160, 84%, 39%)",
+    },
   ];
 
   const topRiskStudents = mockStudents.slice(0, 5);
@@ -168,29 +228,29 @@ const Dashboard = () => {
         <KPICard
           icon={Users}
           title="Total de Alunos"
-          value={stats.total}
+          value={totalAlunos}
           subtitle="analisados"
           variant="default"
         />
         <KPICard
           icon={AlertTriangle}
           title="Risco Alto"
-          value={stats.highRisk}
-          subtitle={`alunos (${stats.highRiskPercent}%)`}
+          value={stats.totalRiscoAlto}
+          subtitle={`alunos (${stats.totalRiscoAlto > 0 ? ((stats.totalRiscoAlto / totalAlunos) * 100).toFixed(0) : 0}%)`}
           variant="high"
         />
         <KPICard
           icon={AlertCircle}
           title="Risco Médio"
-          value={stats.mediumRisk}
-          subtitle={`alunos (${stats.mediumRiskPercent}%)`}
+          value={stats.totalRiscoMedio}
+          subtitle={`alunos (${stats.totalRiscoMedio > 0 ? ((stats.totalRiscoMedio / totalAlunos) * 100).toFixed(0) : 0}%)`}
           variant="medium"
         />
         <KPICard
           icon={CheckCircle}
           title="Risco Baixo"
-          value={stats.lowRisk}
-          subtitle={`alunos (${stats.lowRiskPercent}%)`}
+          value={stats.totalRiscoBaixo}
+          subtitle={`alunos (${stats.totalRiscoBaixo > 0 ? ((stats.totalRiscoBaixo / totalAlunos) * 100).toFixed(0) : 0}%)`}
           variant="low"
         />
       </div>
@@ -236,39 +296,81 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="lg:col-span-3 bg-card rounded-xl border border-border shadow-sm p-6">
+        <div className="lg:col-span-3 bg-card rounded-xl flex flex-col border border-border shadow-sm p-6">
           <h2 className="text-lg font-semibold text-foreground mb-4">
             Prioridades de Intervenção
           </h2>
-          <div className="space-y-4">
-            {topRiskStudents.map((student) => (
+          <div className="space-y-4 flex-1">
+            {alunosRiscoAlto.map((aluno) => (
               <div
-                key={student.id}
+                key={aluno.matricula}
                 className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg hover:bg-muted transition-colors"
               >
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     <span className="font-semibold text-foreground">
-                      {student.id}
+                      {aluno.matricula}
                     </span>
-                    <RiskBadge level={student.riskLevel} />
-                    <TrendIcon trend={student.trend} />
+                    <RiskBadge
+                      level={
+                        aluno.probabilidade_evasao > 0.69
+                          ? "alto"
+                          : aluno.probabilidade_evasao > 0.39
+                            ? "medio"
+                            : "baixo"
+                      }
+                    />
+                    <TrendIcon trend={"down"} />
                   </div>
                   <ProgressBar
-                    value={student.probability}
-                    level={student.riskLevel}
+                    value={aluno.probabilidade_evasao}
+                    level={
+                      aluno.probabilidade_evasao > 0.69
+                        ? "alto"
+                        : aluno.probabilidade_evasao > 0.39
+                          ? "medio"
+                          : "baixo"
+                    }
                   />
                 </div>
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setSelectedStudent(student)}
+                  onClick={() => setAlunoSelecionado(aluno)}
                 >
                   <Eye className="h-4 w-4 mr-1" />
                   Detalhes
                 </Button>
               </div>
             ))}
+          </div>
+          {/* Pagination */}
+          <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+            <span className="text-sm text-muted-foreground">
+              Mostrando {(currentPageRA - 1) * alunosRAPorPagina + 1} -{" "}
+              {Math.min(currentPageRA * alunosRAPorPagina, totalAlunosRA)} de{" "}
+              {totalAlunosRA}
+            </span>
+            <div className="flex gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPageRA((p) => Math.max(1, p - 1))}
+                disabled={currentPageRA === 1}
+              >
+                Anterior
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setCurrentPageRA((p) => Math.min(totalPagesRA, p + 1))
+                }
+                disabled={ currentPageRA === totalPagesRA || totalPagesRA === 0}
+              >
+                Próximo
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -457,7 +559,7 @@ const Dashboard = () => {
                 onClick={() =>
                   setCurrentPage((p) => Math.min(totalPages, p + 1))
                 }
-                disabled={currentPage === totalPages}
+                disabled={currentPage === totalPages || totalPages === 0}
               >
                 Próximo
               </Button>
@@ -486,11 +588,15 @@ const Dashboard = () => {
                     {alunoSelecionado.turma_info}
                   </p>
                 </div>
-                <RiskBadge level={alunoSelecionado.probabilidade_evasao > 0.69
-                          ? "alto"
-                          : alunoSelecionado.probabilidade_evasao > 0.39
-                            ? "medio"
-                            : "baixo"} />
+                <RiskBadge
+                  level={
+                    alunoSelecionado.probabilidade_evasao > 0.69
+                      ? "alto"
+                      : alunoSelecionado.probabilidade_evasao > 0.39
+                        ? "medio"
+                        : "baixo"
+                  }
+                />
               </div>
               <div className="space-y-4">
                 <div>
@@ -499,11 +605,13 @@ const Dashboard = () => {
                   </p>
                   <ProgressBar
                     value={alunoSelecionado.probabilidade_evasao}
-                    level={alunoSelecionado.probabilidade_evasao > 0.69
-                          ? "alto"
-                          : alunoSelecionado.probabilidade_evasao > 0.39
-                            ? "medio"
-                            : "baixo"}
+                    level={
+                      alunoSelecionado.probabilidade_evasao > 0.69
+                        ? "alto"
+                        : alunoSelecionado.probabilidade_evasao > 0.39
+                          ? "medio"
+                          : "baixo"
+                    }
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -572,6 +680,7 @@ const Dashboard = () => {
             title: "Sucesso",
             description: "Arquivo enviado com sucesso!",
           });
+          fetchAlunos();
         }}
       />
     </div>

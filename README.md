@@ -1,4 +1,4 @@
-<h1>Sobre o projeto</h1>
+<h1>Sobre o Edumetria</h1>
 
 O projeto <strong>Edumetria</strong> tem como objetivo implementar um sistema web para previsão de evasão escolar, transformando dados escolares "mortos" em alertas de risco, através de previsões geradas por um modelo de aprendizado supervisionado baseado em árvores de decisão.
 
