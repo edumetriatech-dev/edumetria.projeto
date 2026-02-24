@@ -5,7 +5,6 @@ class AlunoSerializer(serializers.ModelSerializer):
     nota_media = serializers.DecimalField(max_digits=5, decimal_places=2, read_only=True)
     frequencia_media = serializers.DecimalField(max_digits=5, decimal_places=2, read_only=True)
     turma_info = serializers.SerializerMethodField()
-
     class Meta:
         read_only_fields = ('created_at', 'updated_at')
         model = Aluno
