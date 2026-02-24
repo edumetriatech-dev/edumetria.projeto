@@ -54,14 +54,29 @@ class AlunoAPIView(APIView):
 
         alunos = alunos.annotate(
             nota_media=Avg('desempenhos__nota'),
-            frequencia_media=Avg('desempenhos__frequencia')
+            frequencia_media=Avg('desempenhos__frequencia'),
         ).distinct()
 
         paginator = AlunoPagination()
         page = paginator.paginate_queryset(alunos, request)
 
         serializer = AlunoSerializer(page, many=True)
-        return paginator.get_paginated_response(serializer.data)
+        response = paginator.get_paginated_response(serializer.data)
+        
+        response.data["total_risco_alto"] = Aluno.objects.filter(
+            probabilidade_evasao__gt=0.69
+        ).count()
+
+        response.data["total_risco_medio"] = Aluno.objects.filter(
+            probabilidade_evasao__gt=0.39,
+            probabilidade_evasao__lte=0.69
+        ).count()
+
+        response.data["total_risco_baixo"] = Aluno.objects.filter(
+            probabilidade_evasao__lte=0.39
+        ).count()
+
+        return response
     
 
     def post(self, request):

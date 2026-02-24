@@ -69,6 +69,7 @@ class Turma(Base):
 
     def __str__(self):
         return f"{self.ano_letivo} - {self.serie}{self.secao}"
+    
 
 class Aluno(Base):
     nome = models.CharField(max_length=255)
