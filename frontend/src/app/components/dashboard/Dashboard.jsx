@@ -323,7 +323,7 @@ const Dashboard = () => {
                     <TrendIcon trend={"down"} />
                   </div>
                   <ProgressBar
-                    value={aluno.probabilidade_evasao}
+                    value={(aluno.probabilidade_evasao*100).toFixed(0)}
                     level={
                       aluno.probabilidade_evasao > 0.69
                         ? "alto"
@@ -409,16 +409,15 @@ const Dashboard = () => {
               </SelectTrigger>
               <SelectContent className="bg-card border-border">
                 <SelectItem value="all">Todas as Séries</SelectItem>
-                <SelectItem value="6">6º Ano</SelectItem>
-                <SelectItem value="7">7º Ano</SelectItem>
-                <SelectItem value="8">8º Ano</SelectItem>
-                <SelectItem value="9">9º Ano</SelectItem>
+                <SelectItem value="10">1º Ano</SelectItem>
+                <SelectItem value="11">2º Ano</SelectItem>
+                <SelectItem value="12">3º Ano</SelectItem>
               </SelectContent>
             </Select>
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar por ID do aluno"
+                placeholder="Buscar por matrícula do aluno"
                 value={filtros.filtroMatricula}
                 onChange={(e) => {
                   setFiltros((prev) => ({
@@ -484,7 +483,7 @@ const Dashboard = () => {
                   </td>
                   <td className="p-4">
                     <ProgressBar
-                      value={aluno.probabilidade_evasao}
+                      value={(aluno.probabilidade_evasao*100).toFixed(0)}
                       level={
                         aluno.probabilidade_evasao > 0.69
                           ? "alto"
@@ -604,7 +603,7 @@ const Dashboard = () => {
                     Probabilidade de Evasão
                   </p>
                   <ProgressBar
-                    value={alunoSelecionado.probabilidade_evasao}
+                    value={(alunoSelecionado.probabilidade_evasao*100).toFixed(0)}
                     level={
                       alunoSelecionado.probabilidade_evasao > 0.69
                         ? "alto"

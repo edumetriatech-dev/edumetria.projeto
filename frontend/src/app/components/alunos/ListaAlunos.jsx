@@ -243,7 +243,7 @@ const Alunos = () => {
                   </td>
                   <td className="p-4">
                     <ProgressBar
-                      value={aluno.probabilidade_evasao}
+                      value={(aluno.probabilidade_evasao*100).toFixed(0)}
                       level={
                         aluno.probabilidade_evasao > 0.69
                           ? "alto"
@@ -356,7 +356,7 @@ const Alunos = () => {
                     Probabilidade de Evasão
                   </p>
                   <ProgressBar
-                    value={alunoSelecionado.probabilidade_evasao}
+                    value={(alunoSelecionado.probabilidade_evasao*100).toFixed(0)}
                     level={alunoSelecionado.probabilidade_evasao > 0.69
                           ? "alto"
                           : alunoSelecionado.probabilidade_evasao > 0.39
