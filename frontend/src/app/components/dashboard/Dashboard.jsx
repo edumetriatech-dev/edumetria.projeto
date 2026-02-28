@@ -409,9 +409,9 @@ const Dashboard = () => {
               </SelectTrigger>
               <SelectContent className="bg-card border-border">
                 <SelectItem value="all">Todas as Séries</SelectItem>
-                <SelectItem value="10">1º Ano</SelectItem>
-                <SelectItem value="11">2º Ano</SelectItem>
-                <SelectItem value="12">3º Ano</SelectItem>
+                <SelectItem value="10">1º EM</SelectItem>
+                <SelectItem value="11">2º EM</SelectItem>
+                <SelectItem value="12">3º EM</SelectItem>
               </SelectContent>
             </Select>
             <div className="relative flex-1">
