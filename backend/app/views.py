@@ -256,7 +256,7 @@ class AlunoAPIView(APIView):
             batch_size=1000
         )
 
-        #processar_lote_ia.delay(str(batch_id))
+        processar_lote_ia.delay(str(batch_id))
 
         return Response(
             {'message': f'Registros importados com sucesso'}, 

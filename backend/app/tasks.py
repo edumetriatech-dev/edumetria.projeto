@@ -1,58 +1,120 @@
 from celery import shared_task
-from .models import Aluno
+from .models import Aluno, Desempenho
 from .serializers import AlunoSerializer
 import pandas as pd
 import joblib
 from sklearn.metrics import accuracy_score
 from django.shortcuts import get_object_or_404
 from django.conf import settings
+from django.db.models import F
 import os
 
 @shared_task(bind=True)
 def processar_lote_ia(self, lote_id):
     # 1. Buscar no banco APENAS os dados desse lote novo
-    passageiros = Aluno.objects.filter(lote_upload_id=lote_id)
+    queryset = (
+        Desempenho.objects
+        .filter(aluno__lote_upload_id=lote_id)
+        .select_related(
+            "aluno",
+            "turma_disciplina__turma",
+            "turma_disciplina__disciplina",
+        )
+        .values(
+            "nota",
+            "frequencia",
+            nome=F("aluno__nome"),
+            matricula=F("aluno__matricula"),
+            ano_letivo=F("aluno__turma__ano_letivo"),
+            serie=F("aluno__turma__serie"),
+            secao=F("aluno__turma__secao"),
+            disciplina=F("turma_disciplina__disciplina__nome_disciplina"),
+            situacao_disciplina=F("situacao"),
+        )
+    )
 
-    if not passageiros.exists():
+    if not queryset.exists():
         return "Nenhum dado encontrado."
 
-    # 2. Transformar em Dataframe
-    df_passageiros = pd.DataFrame.from_records(passageiros.values())
+    # -------------------------------------------------------------
+    # Transformar em Dataframe
+    # -------------------------------------------------------------
+    df = pd.DataFrame(list(queryset))
 
-    df_passageiros.rename(columns={
-        'survived': 'Survived',
-        'pclass': 'Pclass',
-        'age': 'Age',
-        'sibsp': 'SibSp',
-        'parch': 'Parch',
-        'fare': 'Fare',
-        'sex_female': 'Sex_female', 
-        'sex_male': 'Sex_male',
-        'embarked_c': 'Embarked_C',
-        'embarked_q': 'Embarked_Q',
-        'embarked_s': 'Embarked_S'
-    }, inplace=True)
+    # -------------------------------------------------------------
+    # TRATAR DADOS
+    # -------------------------------------------------------------
 
-    # 3. Preparar dados (remover colunas que a IA não usa, como ID ou Nome)
-    features = df_passageiros[['Pclass', 'Age', 'SibSp', 'Parch', 'Fare', 'Sex_female', 'Sex_male', 'Embarked_C', 'Embarked_Q', 'Embarked_S']]
+    # Transforma situacao_disciplina para binario
+    df["situacao_disciplina"] = df["situacao_disciplina"].map({
+        "Aprovado": 1,
+        "Reprovado": 0
+    })
 
-    # 4. Carregar modelo IA e Prever
-    modelo_path = os.path.join(settings.BASE_DIR, '..', 'modelos', 'modelo_titanic_k5.pkl')
-    modelo = joblib.load(modelo_path)
-    #survived_preds = modelo.predict(features) #acho que é .series
-    survived_preds = modelo.predict_proba(features)[:,1] #acho que é .series
+    # transformar dados ligados a disciplina para formato wide (agregado por aluno)
+    df = df.pivot_table(
+        index=["matricula"],
+        columns="disciplina",
+        values=["nota","frequencia", "situacao_disciplina"],
+        aggfunc="first"
+    )
 
-    # 6. Atualizar o Banco de Dados com as previsões
-    for i, survived_pred in enumerate(survived_preds):
-        passageiro = get_object_or_404(Passageiro, pk=df_passageiros.iloc[i]['id'])
-        # 6.1 UPDATE Passageiro SET survived_pred = survived_pred WHERE id = passageiro_id
-        serializer = PassageiroSerializer(
-            passageiro, 
-            data={"survived_pred": survived_pred},
-            partial=True
+    df.columns = [f"{col[0].replace('situacao_disciplina','situacao')}_{str(col[1]).lower()}" for col in df.columns]
+    df = df.reset_index()
+
+
+    # retira colunas que não são necessárias
+    matriculas = df['matricula'].copy() # faz uma cópia para manter matrícula
+    df.drop(columns=['matricula'], inplace=True)
+
+    # One-hot encoding
+    #df = pd.get_dummies(df, columns=['serie', 'secao'])
+
+    # -------------------------------------------------------------
+    # Carregar modelo IA e Prever
+    # -------------------------------------------------------------
+    modelo_path = os.path.join(settings.BASE_DIR, '..', 'modelos', 'modelo_aluno_escola_2025.pkl')
+    artefato = joblib.load(modelo_path)
+    modelo = artefato['model']
+    features_treino = artefato['features']
+
+    # adiciona colunas que existiam no treino mas não existem agora
+    for col in features_treino:
+        if col not in df.columns:
+            df[col] = 0
+
+    # mantém apenas colunas usadas no treino e na ordem correta
+    df = df[features_treino]
+
+    """ pd.set_option("display.max_rows", None)
+    pd.set_option("display.max_columns", None)
+    pd.set_option("display.width", None)
+    pd.set_option("display.max_colwidth", None)
+    print(df) """
+    #evasao_preds = modelo.predict(features) #acho que é .series
+    evasao_preds = modelo.predict_proba(df)[:,1] #acho que é .series
+
+    resultado = pd.DataFrame({
+        "matricula": matriculas,
+        "probabilidade_evasao": evasao_preds
+    })  
+
+    # -------------------------------------------------------------
+    # Atualizar o Banco de Dados com as previsões
+    # -------------------------------------------------------------
+    alunos_dict = {
+        aluno.matricula: aluno
+        for aluno in Aluno.objects.filter(
+            matricula__in=resultado["matricula"]
         )
-        if serializer.is_valid():
-            serializer.save()
+    }
+
+    for _, row in resultado.iterrows():
+        aluno = alunos_dict.get(row["matricula"])
+        if aluno:
+            aluno.probabilidade_evasao = row["probabilidade_evasao"]
+
+    Aluno.objects.bulk_update(alunos_dict.values(), ["probabilidade_evasao"])
 
     return f"Lote {lote_id} processado com sucesso."
 

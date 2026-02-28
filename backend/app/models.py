@@ -97,6 +97,7 @@ class Aluno(Base):
 
     class Meta:
         verbose_name_plural = 'Alunos'
+        ordering = ['matricula']
 
     def __str__(self):
         return self.matricula
