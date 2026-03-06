@@ -72,7 +72,7 @@ class Turma(Base):
     
 
 class Aluno(Base):
-    nome = models.CharField(max_length=255)
+    nome = models.CharField(max_length=255, null=True, blank=True)
     matricula = models.CharField(max_length=255, primary_key=True)
     # Colunas de controle
     lote_upload_id = models.CharField(max_length=500, null=True, blank=True) # Para saber qual CSV originou isso
