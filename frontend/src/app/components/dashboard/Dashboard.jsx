@@ -104,7 +104,6 @@ const Dashboard = () => {
       );
       if (!response.ok) throw new Error("Erro ao buscar alunos");
       const data = await response.json();
-      console.log(data);
       setStats({
         totalRiscoAlto: data.total_risco_alto,
         totalRiscoMedio: data.total_risco_medio,
@@ -114,8 +113,7 @@ const Dashboard = () => {
       setTotalAlunos(data.count);
       setCurrentPage(page);
       setTotalPages(Math.ceil(data.count / alunosPorPagina));
-    } catch (error) {
-      console.error(error);
+    } catch {
       setAlunos([]);
       setTotalAlunos(0);
       setCurrentPage(1);
@@ -152,8 +150,7 @@ const Dashboard = () => {
       setTotalAlunosRA(data.count);
       setCurrentPageRA(page);
       setTotalPagesRA(Math.ceil(data.count / alunosRAPorPagina));
-    } catch (error) {
-      console.error(error);
+    } catch {
       setAlunosRiscoAlto([]);
       setTotalAlunosRA(0);
       setCurrentPageRA(1);
@@ -468,7 +465,7 @@ const Dashboard = () => {
                     {aluno.matricula}
                   </td>
                   <td className="p-4 text-muted-foreground">
-                    {aluno.turma_info}
+                    {aluno.turma.ano_letivo} - {aluno.turma.serie}º{aluno.turma.secao}
                   </td>
                   <td className="p-4">
                     <RiskBadge
@@ -584,7 +581,7 @@ const Dashboard = () => {
                     {alunoSelecionado.matricula}
                   </p>
                   <p className="text-muted-foreground">
-                    {alunoSelecionado.turma_info}
+                    {alunoSelecionado.turma.ano_letivo} - {alunoSelecionado.turma.serie}º{alunoSelecionado.turma.secao}
                   </p>
                 </div>
                 <RiskBadge
