@@ -12,6 +12,26 @@ from django.db import transaction
 from django.db.models import Avg, Case, When, Value, IntegerField
 from .tasks import processar_lote_ia
 
+class TurmaAPIView(APIView):
+    def get(self, request, pk=None):
+        turmas = Turma.objects.all()
+        serializer = TurmaSerializer(turmas, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+class DisciplinaAPIView(APIView):
+    def get(self, request, pk=None):
+
+        # filtro
+        turma_id = request.query_params.get("turma_id")
+        if turma_id:
+            relacoes = TurmaDisciplina.objects.filter(turma_id=turma_id)
+            serializer = TurmaDisciplinaSerializer(relacoes, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        
+        disciplinas = Disciplina.objects.all()
+        serializer = DisciplinaSerializer(disciplinas, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
 class AlunoAPIView(APIView):
     def get(self, request, pk=None):
         if pk:
@@ -82,8 +102,35 @@ class AlunoAPIView(APIView):
     def post(self, request):
         csv_file = request.FILES.get('file')
         if not csv_file:
-            return Response({'error': 'Arquivo CSV não enviado'},
-                            status=status.HTTP_400_BAD_REQUEST)
+            data = request.data
+            if not data:
+                return Response({'error': 'Nenhum dado ou arquivo encontrado'})
+            
+            matricula=data.get("matricula")
+            turma_id=data.get("turma_id")
+            disciplinas=data.get("disciplinas")
+
+            turma = Turma.objects.get(id=turma_id)
+
+            # CRIA ALUNO e relacionamento com turma
+            aluno = Aluno.objects.create(
+                matricula=data.get("matricula"),                          
+                turma=turma
+            )
+
+            for disc in disciplinas:
+                turma_disciplina = TurmaDisciplina.objects.get(id=disc["turma_disciplina_id"])
+
+                # CRIA RELACIONAMENTO ALUNO E TURMA E DISCIPLINA
+                desempenho = Desempenho.objects.create(
+                    aluno=aluno,
+                    turma_disciplina=turma_disciplina,
+                    frequencia=disc["frequencia_media"],
+                    nota=disc["nota_media"],
+                    situacao=disc["situacao_disciplina"].lower(),
+                )
+            
+            return Response({'message': 'Aluno criado com sucesso.'}, status=status.HTTP_201_CREATED)
 
         if not csv_file.name.endswith('.csv'):
             return Response({'error': 'O arquivo precisa ser CSV'},
@@ -245,7 +292,7 @@ class AlunoAPIView(APIView):
                 turma_disciplina=td,
                 nota=float(row["nota"]),
                 frequencia=float(row["frequencia"]),
-                situacao=row["situacao_disciplina"]
+                situacao=row["situacao_disciplina"].lower()
             )
 
             desempenhos_para_criar.append(desempenho)
@@ -265,16 +312,44 @@ class AlunoAPIView(APIView):
 
     
     def put(self, request, pk):
-        aluno = get_object_or_404(Aluno, pk=pk)
-        serializer = AlunoSerializer(aluno, data=request.data)
+        aluno = Aluno.objects.get(matricula=pk)
+
+        data = request.data
+        if not data:
+            return Response({'error': 'Nenhum dado encontrado'})
+        
+        #matricula=data.get("matricula")
+        turma_id=data.get("turma_id")
+        disciplinas=data.get("disciplinas")
+
+        turma = Turma.objects.get(id=turma_id)
+
+        # EDITA ALUNO
+        aluno.turma = turma
+        aluno.save()
+
+        for disc in disciplinas:
+            turma_disciplina = TurmaDisciplina.objects.get(id=disc["turma_disciplina_id"])
+
+            # EDITA DESEMPENHO
+            desempenho = Desempenho.objects.get(
+                aluno=aluno,
+                turma_disciplina=turma_disciplina,
+            )
+            desempenho.frequencia=disc["frequencia_media"]
+            desempenho.nota=disc["nota_media"]
+            desempenho.situacao=disc["situacao_disciplina"]
+            desempenho.save()
+
+        """ serializer = AlunoSerializer(aluno, data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data)
+        serializer.save() """
+        return Response({'message': 'Aluno editado com sucesso.'}, status=status.HTTP_200_OK)
     
     def delete(self, request, pk):
         aluno = get_object_or_404(Aluno, pk=pk)
         aluno.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response({'message:', 'Aluno excluído com sucesso'}, status=status.HTTP_200_OK)
     
 
 """ class PassageiroAPIView(APIView): 
