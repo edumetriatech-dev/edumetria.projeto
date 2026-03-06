@@ -2,13 +2,17 @@
 
 import { useState, useEffect } from "react";
 import {
+  Upload,
   FileText,
   Search,
   Eye,
   TrendingDown,
   TrendingUp,
   Minus,
-  Upload,
+  X,
+  Plus,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -27,9 +31,11 @@ import {
 } from "@/app/components/ui/dialog";
 import RiskBadge from "@/app/components/RiskBadge";
 import ProgressBar from "@/app/components/ProgressBar";
-import { mockStudents } from "@/app/(public)/data/mockStudents";
 import EnviaCSV from "@/app/components/EnviaCSV";
 import { toast } from "@/app/hooks/use-toast";
+import CriaAluno from "@/app/components/alunos/CriaAluno";
+import EditaAluno from "@/app/components/alunos/EditaAluno";
+import ExcluiAluno from "@/app/components/alunos/ExcluiAluno";
 
 const rota = process.env.NEXT_PUBLIC_API_URL;
 
@@ -49,7 +55,10 @@ const Alunos = () => {
   const [hasPreviousPage, setHasPreviousPage] = useState(false);
   const [alunosPorPagina, setAlunosPorPagina] = useState(10);
   const [alunoSelecionado, setAlunoSelecionado] = useState(null);
-  
+
+  const [modalCriaAluno, setModalCriaAluno] = useState(false);
+  const [alunoEditando, setAlunoEditando] = useState(null);
+  const [alunoExcluindo, setAlunoExcluindo] = useState(null);
   const [modalEnviaCsv, setModalEnviaCsv] = useState(false);
 
   const [filtros, setFiltros] = useState({
@@ -69,13 +78,19 @@ const Alunos = () => {
    * @returns {Promise<void>}
    * @throws {Error} Lança um erro se a resposta da API não for bem-sucedida.
    */
-  const fetchAlunos = async (page = 1, filtros, alunosPorPagina=10) => {
+  const fetchAlunos = async (page = 1, filtros, alunosPorPagina = 10) => {
     try {
       const response = await fetch(
         `${rota}/api/v1/alunos?page=${page}&page_size=${alunosPorPagina}` +
-          (filtros.filtroMatricula ? `&matricula=${filtros.filtroMatricula}` : "") +
-          (filtros.filtroRisco && filtros.filtroRisco != "all" ? `&risco=${filtros.filtroRisco}` : "") + 
-          (filtros.filtroSerie && filtros.filtroSerie != "all" ? `&serie=${filtros.filtroSerie}` : ""),
+          (filtros.filtroMatricula
+            ? `&matricula=${filtros.filtroMatricula}`
+            : "") +
+          (filtros.filtroRisco && filtros.filtroRisco != "all"
+            ? `&risco=${filtros.filtroRisco}`
+            : "") +
+          (filtros.filtroSerie && filtros.filtroSerie != "all"
+            ? `&serie=${filtros.filtroSerie}`
+            : ""),
         {
           method: "GET",
           headers: {
@@ -85,15 +100,13 @@ const Alunos = () => {
       );
       if (!response.ok) throw new Error("Erro ao buscar alunos");
       const data = await response.json();
-      console.log(data);
       setAlunos(data.results);
       setHasPreviousPage(!!data.previous);
       setHasNextPage(!!data.next);
       setTotalAlunos(data.count);
       setCurrentPage(page);
       setTotalPages(Math.ceil(data.count / alunosPorPagina));
-    } catch (error) {
-      console.error(error);
+    } catch {
       setAlunos([]);
       setTotalAlunos(0);
       setCurrentPage(1);
@@ -119,6 +132,10 @@ const Alunos = () => {
           </p>
         </div>
         <div className="flex gap-3">
+          <Button onClick={() => setModalCriaAluno(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Novo Aluno
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -140,7 +157,7 @@ const Alunos = () => {
             <Select
               value={filtros.filtroRisco}
               onValueChange={(v) => {
-                setFiltros((prev) => ({ ...prev, filtroRisco: v }))
+                setFiltros((prev) => ({ ...prev, filtroRisco: v }));
               }}
             >
               <SelectTrigger className="w-full md:w-48 bg-background">
@@ -156,7 +173,7 @@ const Alunos = () => {
             <Select
               value={filtros.filtroSerie}
               onValueChange={(v) => {
-                setFiltros((prev) => ({ ...prev, filtroSerie: v }))
+                setFiltros((prev) => ({ ...prev, filtroSerie: v }));
               }}
             >
               <SelectTrigger className="w-full md:w-48 bg-background">
@@ -175,7 +192,10 @@ const Alunos = () => {
                 placeholder="Buscar por matrícula do aluno"
                 value={filtros.filtroMatricula}
                 onChange={(e) => {
-                  setFiltros((prev) => ({ ...prev, filtroMatricula: e.target.value }));
+                  setFiltros((prev) => ({
+                    ...prev,
+                    filtroMatricula: e.target.value,
+                  }));
                 }}
                 className="pl-10 bg-background"
               />
@@ -226,9 +246,7 @@ const Alunos = () => {
                     {aluno.matricula}
                   </td>
                   <td className="p-4 text-muted-foreground">
-                    {aluno.turma_info}
-                    {/* {aluno.turma.ano_letivo} - {aluno.turma.serie}º{" "}
-                    {aluno.turma.secao} */}
+                    {aluno.turma.ano_letivo} - {aluno.turma.serie}º{aluno.turma.secao}
                   </td>
                   <td className="p-4">
                     <RiskBadge
@@ -243,7 +261,7 @@ const Alunos = () => {
                   </td>
                   <td className="p-4">
                     <ProgressBar
-                      value={(aluno.probabilidade_evasao*100).toFixed(0)}
+                      value={(aluno.probabilidade_evasao * 100).toFixed(0)}
                       level={
                         aluno.probabilidade_evasao > 0.69
                           ? "alto"
@@ -253,7 +271,9 @@ const Alunos = () => {
                       }
                     />
                   </td>
-                  <td className="p-4 text-muted-foreground">{aluno.nota_media}</td>
+                  <td className="p-4 text-muted-foreground">
+                    {aluno.nota_media}
+                  </td>
                   <td className="p-4 text-muted-foreground">
                     {(aluno.frequencia_media * 100).toFixed(0)}%
                   </td>
@@ -264,6 +284,20 @@ const Alunos = () => {
                       onClick={() => setAlunoSelecionado(aluno)}
                     >
                       Detalhes
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setAlunoEditando(aluno)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setAlunoExcluindo(aluno)}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </td>
                 </tr>
@@ -341,14 +375,18 @@ const Alunos = () => {
                     {alunoSelecionado.matricula}
                   </p>
                   <p className="text-muted-foreground">
-                    {alunoSelecionado.turma_info}
+                    {alunoSelecionado.turma.ano_letivo} - {alunoSelecionado.turma.serie}º{alunoSelecionado.turma.secao}
                   </p>
                 </div>
-                <RiskBadge level={alunoSelecionado.probabilidade_evasao > 0.69
-                          ? "alto"
-                          : alunoSelecionado.probabilidade_evasao > 0.39
-                            ? "medio"
-                            : "baixo"} />
+                <RiskBadge
+                  level={
+                    alunoSelecionado.probabilidade_evasao > 0.69
+                      ? "alto"
+                      : alunoSelecionado.probabilidade_evasao > 0.39
+                        ? "medio"
+                        : "baixo"
+                  }
+                />
               </div>
               <div className="space-y-4">
                 <div>
@@ -356,12 +394,16 @@ const Alunos = () => {
                     Probabilidade de Evasão
                   </p>
                   <ProgressBar
-                    value={(alunoSelecionado.probabilidade_evasao*100).toFixed(0)}
-                    level={alunoSelecionado.probabilidade_evasao > 0.69
-                          ? "alto"
-                          : alunoSelecionado.probabilidade_evasao > 0.39
-                            ? "medio"
-                            : "baixo"}
+                    value={(
+                      alunoSelecionado.probabilidade_evasao * 100
+                    ).toFixed(0)}
+                    level={
+                      alunoSelecionado.probabilidade_evasao > 0.69
+                        ? "alto"
+                        : alunoSelecionado.probabilidade_evasao > 0.39
+                          ? "medio"
+                          : "baixo"
+                    }
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -442,17 +484,67 @@ const Alunos = () => {
         </DialogContent>
       </Dialog>
 
-      <EnviaCSV
-        isUploadOpen={modalEnviaCsv}
-        setIsUploadOpen={(open) => setModalEnviaCsv(open)}
-        onUpload={() => {
-          setModalEnviaCsv(false);
-          toast({
-            title: "Sucesso",
-            description: "Arquivo enviado com sucesso!",
-          });
-        }}
-      />
+      {modalEnviaCsv && (
+        <EnviaCSV
+          open={modalEnviaCsv}
+          onOpenChange={(isOpen) => setModalEnviaCsv(isOpen)}
+          onUpload={() => {
+            setModalEnviaCsv(false);
+            toast({
+              title: "Sucesso",
+              description: "Arquivo enviado com sucesso!",
+            });
+            fetchAlunos(1, filtros, alunosPorPagina);
+          }}
+        />
+      )}
+
+      {modalCriaAluno && (
+        <CriaAluno 
+          open={modalCriaAluno}
+          onOpenChange={(isOpen) => setModalCriaAluno(isOpen)}
+          onCreate={() => {
+            setModalCriaAluno(false);
+            toast({
+              title: "Sucesso",
+              description: "Aluno cadastrado com sucesso!",
+            });
+            fetchAlunos(currentPage, filtros, alunosPorPagina);
+          }}
+        />
+      )}
+
+      {alunoEditando && (
+        <EditaAluno
+          setAluno={(open) => setAlunoEditando(open)}
+          aluno={alunoEditando}
+          onSave={() => {
+            setAlunoEditando(null);
+            toast({
+              title: "Sucesso",
+              description: "Aluno editado com sucesso!",
+            });
+            fetchAlunos(currentPage, filtros, alunosPorPagina);
+          }}
+          onClose={() => setAlunoEditando(null)}
+        />
+      )}
+
+      {alunoExcluindo && (
+        <ExcluiAluno
+          setAluno={(open) => setAlunoExcluindo(open)}
+          aluno={alunoExcluindo}
+          onDelete={() => {
+            setAlunoExcluindo(null);
+            toast({
+              title: "Sucesso",
+              description: "Aluno excluído com sucesso!",
+            });
+            fetchAlunos(currentPage, filtros, alunosPorPagina);
+          }}
+        />
+      )}
+
     </div>
   );
 };

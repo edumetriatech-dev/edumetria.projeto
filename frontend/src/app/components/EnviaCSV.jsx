@@ -17,7 +17,7 @@ import { toast } from '@/app/hooks/use-toast';
 
 const rota = process.env.NEXT_PUBLIC_API_URL;
 
-const EnviaCSV = ({ isUploadOpen, setIsUploadOpen, onUpload }) => {
+const EnviaCSV = ({ open, onOpenChange, onUpload }) => {
   const fileInputRef = useRef(null);
   const [selectedFile, setSelectedFile] = useState(null);
 
@@ -49,10 +49,10 @@ const EnviaCSV = ({ isUploadOpen, setIsUploadOpen, onUpload }) => {
 
   return (
     <Dialog
-      open={isUploadOpen}
-      onOpenChange={(open) => {
-        setIsUploadOpen(open);
-        if (!open) setSelectedFile(null);
+      open={open}
+      onOpenChange={(isOpen) => {
+        onOpenChange(isOpen);
+        if (!isOpen) setSelectedFile(null);
       }}
     >
       <DialogContent className="max-w-md bg-card">
