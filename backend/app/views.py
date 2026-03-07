@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import Aluno, Turma, Disciplina, TurmaDisciplina, Desempenho
 from .serializers import AlunoSerializer, TurmaSerializer, DisciplinaSerializer, TurmaDisciplinaSerializer, DesempenhoSerializer
-from .pagination import AlunoPagination
+from .pagination import AlunoPagination, TurmaPagination, DisciplinaPagination, TurmaDisciplinaPagination
 from django.shortcuts import get_object_or_404
 import csv
 import io
@@ -15,8 +15,14 @@ from .tasks import processar_lote_ia
 class TurmaAPIView(APIView):
     def get(self, request, pk=None):
         turmas = Turma.objects.all()
-        serializer = TurmaSerializer(turmas, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+
+        paginator = TurmaPagination()
+        page = paginator.paginate_queryset(turmas, request)
+
+        serializer = TurmaSerializer(page, many=True)
+        response = paginator.get_paginated_response(serializer.data)
+
+        return response
     
 class DisciplinaAPIView(APIView):
     def get(self, request, pk=None):
@@ -25,12 +31,24 @@ class DisciplinaAPIView(APIView):
         turma_id = request.query_params.get("turma_id")
         if turma_id:
             relacoes = TurmaDisciplina.objects.filter(turma_id=turma_id)
-            serializer = TurmaDisciplinaSerializer(relacoes, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+
+            paginator = TurmaDisciplinaPagination()
+            page = paginator.paginate_queryset(relacoes, request)
+
+            serializer = TurmaDisciplinaSerializer(page, many=True)
+            response = paginator.get_paginated_response(serializer.data)
+
+            return response
         
         disciplinas = Disciplina.objects.all()
-        serializer = DisciplinaSerializer(disciplinas, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+
+        paginator = DisciplinaPagination()
+        page = paginator.paginate_queryset(disciplinas, request)
+
+        serializer = DisciplinaSerializer(page, many=True)
+        response = paginator.get_paginated_response(serializer.data)
+
+        return response
 
 class AlunoAPIView(APIView):
     def get(self, request, pk=None):
