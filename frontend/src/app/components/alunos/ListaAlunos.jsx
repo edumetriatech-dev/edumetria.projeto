@@ -246,7 +246,7 @@ const Alunos = () => {
                     {aluno.matricula}
                   </td>
                   <td className="p-4 text-muted-foreground">
-                    {aluno.turma.ano_letivo} - {aluno.turma.serie}º{aluno.turma.secao}
+                    {aluno.turma.ano_letivo} - {aluno.turma.serie}º {aluno.turma.secao}
                   </td>
                   <td className="p-4">
                     <RiskBadge
@@ -349,7 +349,7 @@ const Alunos = () => {
                 onClick={() =>
                   setCurrentPage((p) => Math.min(totalPages, p + 1))
                 }
-                disabled={currentPage === totalPages}
+                disabled={currentPage === totalPages || totalPages === 0}
               >
                 Próximo
               </Button>

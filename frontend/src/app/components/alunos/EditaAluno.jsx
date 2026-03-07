@@ -31,7 +31,7 @@ const EditaAluno = ({ aluno, setAluno, onSave, onClose }) => {
       if (!response.ok) throw new Error("Erro ao buscar turmas");
 
       const data = await response.json();
-      setTurmas(data);
+      setTurmas(data.results || []);
 
     } catch {
       throw new Error("Erro ao buscar turmas");
@@ -81,7 +81,7 @@ const EditaAluno = ({ aluno, setAluno, onSave, onClose }) => {
 
       setFormData((p) => ({
         ...p,
-        disciplinas: data.map( ({id, nome_disciplina}) => ({
+        disciplinas: data.results?.map( ({id, nome_disciplina}) => ({
             nome_disciplina,
             turma_disciplina_id: id,
             nota_media: 0,
@@ -118,6 +118,29 @@ const EditaAluno = ({ aluno, setAluno, onSave, onClose }) => {
       onSave();
     } catch {
       throw new Error("Erro ao criar aluno.");
+    }
+  };
+
+  const formataDisciplina = (nomeDisciplina) => {
+    switch(nomeDisciplina){
+      case 'portugues':
+        return 'Português';
+      case 'matematica':
+        return 'Matemática';
+      case 'historia':
+        return 'História';
+      case 'geografia':
+        return 'Geografia';
+      case 'fisica':
+        return 'Física';
+      case 'quimica':
+        return 'Química';
+      case 'biologia':
+        return 'Biologia';
+      case 'ingles':
+        return 'Inglês';
+      default:
+        return '';
     }
   };
 
@@ -194,7 +217,7 @@ const EditaAluno = ({ aluno, setAluno, onSave, onClose }) => {
                   className="p-3 bg-muted/50 rounded-lg border border-border space-y-3"
                 >
                   <div className="flex items-center justify-between">
-                    <Label>{disc.nome_disciplina}</Label>
+                    <Label>{formataDisciplina(disc.nome_disciplina)}</Label>
                   </div>
                   <div className="grid grid-cols-3 gap-3">
                     <div>
