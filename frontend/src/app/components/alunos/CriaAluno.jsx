@@ -41,9 +41,9 @@ const CriaAluno = ({ open, onOpenChange, onCreate }) => {
       if (!response.ok) throw new Error("Erro ao buscar turmas");
 
       const data = await response.json();
-      setTurmas(data);
-      setFormData(p => ({ ...p, turma_id: data[0].id}));
-      fetchDisciplinas(data[0].id);
+      setTurmas(data.results);
+      setFormData(p => ({ ...p, turma_id: data.results[0].id}));
+      fetchDisciplinas(data.results[0].id);
     } catch {
       throw new Error("Erro ao buscar turmas");
     }
@@ -67,7 +67,7 @@ const CriaAluno = ({ open, onOpenChange, onCreate }) => {
       
       setFormData((p) => ({
         ...p,
-        disciplinas: data.map(({ id, nome_disciplina }) => ({
+        disciplinas: data.results.map(({ id, nome_disciplina }) => ({
           nome_disciplina,
           turma_disciplina_id: id,
           nota_media: 0,
@@ -144,6 +144,29 @@ const CriaAluno = ({ open, onOpenChange, onCreate }) => {
     }
   };
 
+  const formataDisciplina = (nomeDisciplina) => {
+    switch(nomeDisciplina){
+      case 'portugues':
+        return 'Português';
+      case 'matematica':
+        return 'Matemática';
+      case 'historia':
+        return 'História';
+      case 'geografia':
+        return 'Geografia';
+      case 'fisica':
+        return 'Física';
+      case 'quimica':
+        return 'Química';
+      case 'biologia':
+        return 'Biologia';
+      case 'ingles':
+        return 'Inglês';
+      default:
+        return '';
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={(isOpen) => onOpenChange(isOpen)}>
       <DialogContent className="max-w-2xl bg-card max-h-[90vh] overflow-y-auto">
@@ -208,7 +231,7 @@ const CriaAluno = ({ open, onOpenChange, onCreate }) => {
                   className="p-3 bg-muted/50 rounded-lg border border-border space-y-3"
                 >
                   <div className="flex items-center justify-between">
-                    <Label>{disc.nome_disciplina}</Label>
+                    <Label>{formataDisciplina(disc.nome_disciplina)}</Label>
                   </div>
                   <div className="grid grid-cols-3 gap-3">
                     <div>

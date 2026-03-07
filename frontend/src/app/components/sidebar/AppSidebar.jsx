@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { LayoutDashboard, LogOut, Users } from "lucide-react";
+import { BookOpen, Brain, FileText, LayoutDashboard, LogOut, School, Settings, Wrench, Users, UserCog } from "lucide-react";
 
 import {
   Sidebar,
@@ -19,6 +19,16 @@ import {
 const menuItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Alunos", url: "/alunos", icon: Users },
+  { title: "Turmas", url: "/turmas", icon: School },
+  { title: "Disciplinas", url: "/disciplinas", icon: BookOpen },
+  /* { title: "Relatórios", url: "/relatorios", icon: FileText },
+  { title: "Intervenções", url: "/intervencoes", icon: UserCog },
+  { title: "Modelo Preditivo", url: "/modeloPreditivo", icon: Brain },
+  { title: "Configurações", url: "/configuracoes", icon: Settings }, */
+  { title: "Relatórios", url: "/404", icon: FileText },
+  { title: "Intervenções", url: "/404", icon: UserCog },
+  { title: "Modelo Preditivo", url: "/404", icon: Brain },
+  { title: "Configurações", url: "/404", icon: Settings },
 ];
 
 export function AppSidebar() {
